@@ -19,4 +19,17 @@ jobs:
               pull_number: context.payload.pull_request.number,
               draft: true
             })
-            console.log('Response:', JSON.stringify(response, null, 2))
+
+            console.log('Update Response:', JSON.stringify(response, null, 2))
+
+            // Verify the change
+            const verifyResponse = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            })
+            console.log('Verification Response:', JSON.stringify(verifyResponse, null, 2))
+            
+            if (!verifyResponse.data.draft) {
+              throw new Error('Failed to convert PR to draft state')
+            }
