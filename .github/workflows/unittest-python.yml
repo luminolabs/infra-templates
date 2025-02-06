@@ -1,15 +1,14 @@
 name: Unit Tests:Python
 
-permissions:
-  contents: read
-
 on:
   workflow_call:
     inputs:
       python_version:
         type: string
-        # required: true
         default: "3.11.10"
+    secrets:
+      REPO_TOKEN:
+        required: true    # Add this secret
 
 jobs:
   run:
@@ -26,8 +25,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: luminolabs/infra-templates
-          ref: refs/heads/srujan/ci_cd ##Need to be modified before merge
+          ref: refs/heads/srujan/ci_cd
           path: scripts
+          token: ${{ secrets.REPO_TOKEN }}  # Use the token here
 
       - name: Run Test Script
         env:
