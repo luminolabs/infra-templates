@@ -1,10 +1,12 @@
-name: Unit Test:Python Workflow
+name: Unit Test
 on:
   workflow_call:
 
 jobs:
-  unit-test:
-    if: contains(github.event.pull_request.labels.*.name, 'draft')
+  run:
+    if: |
+      (github.event.action == 'labeled' && github.event.label.name == 'draft') ||
+      contains(github.event.pull_request.labels.*.name, 'draft')
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
