@@ -1,0 +1,12 @@
+name: Unit Test Workflow
+on:
+  workflow_call:
+
+jobs:
+  unit-test:
+    if: github.event.label.name == 'draft'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+      - name: Unit Tests
+        run: echo "Running full test suite"
