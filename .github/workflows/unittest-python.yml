@@ -1,12 +1,40 @@
 name: Unit Tests:Python
 on:
   workflow_call:
+    inputs:
+      python_version:
+        required: false
+        type: string
+        default: "3.11.10"
 
 jobs:
   run:
     name: Run tests
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v3
-      - name: Unit Tests
-        run: echo "Running full test suite"
+      - uses: actions/checkout@v4
+        name: Checkout Code Repository
+        with:
+          repository: ${{ github.event.repository.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          
+      - name: Checkout test scripts
+        uses: actions/checkout@v4
+        with:
+          repository: luminolabs/infra-templates
+          ref: srujan/ci_cd
+          path: scripts
+
+      - name: Run Test Script
+        env:
+          PYTHON_VERSION: ${{ inputs.python_version }}
+        run: |
+          chmod +x .github/workflows/scripts/run_python_unittests.sh
+          ./.github/workflows/scripts/run_python_unittests.sh
+
+      - name: Cleanup
+        if: always()
+        run: |
+          REPO_PATH=$(pwd)
+          cd ..
+          rm -rf $REPO_PATH
