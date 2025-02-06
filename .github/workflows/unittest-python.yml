@@ -3,8 +3,8 @@ on:
   workflow_call:
     inputs:
       python_version:
-        required: false
         type: string
+        required: true
         default: "3.11.10"
 
 jobs:

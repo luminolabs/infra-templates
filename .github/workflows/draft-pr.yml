@@ -33,3 +33,16 @@ jobs:
             if (!verifyResponse.data.draft) {
               throw new Error('Failed to convert PR to draft state')
             }
+
+# name: Unit Tests:Python
+# on:
+#   workflow_call:
+
+# jobs:
+#   run:
+#     name: Run tests
+#     runs-on: self-hosted
+#     steps:
+#       - uses: actions/checkout@v3
+#       - name: Unit Tests
+#         run: echo "Running full test suite"
