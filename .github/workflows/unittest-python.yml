@@ -1,9 +1,10 @@
-name: Unit Test
+name: Unit Tests
 on:
   workflow_call:
 
 jobs:
   run:
+    name: Unit Tests
     if: |
       (github.event.action == 'labeled' && github.event.label.name == 'draft') ||
       contains(github.event.pull_request.labels.*.name, 'draft')
