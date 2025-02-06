@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: luminolabs/infra-templates
-          ref: srujan/ci_cd ##Need to be modified before merge
+          ref: refs/heads/srujan/ci_cd ##Need to be modified before merge
           path: scripts
 
       - name: Run Test Script
