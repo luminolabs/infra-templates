@@ -4,7 +4,7 @@ on:
 
 jobs:
   unit-test:
-    if: github.event.label.name == 'draft'
+    if: contains(github.event.pull_request.labels.*.name, 'draft')
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
