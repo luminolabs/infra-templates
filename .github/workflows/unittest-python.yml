@@ -67,7 +67,7 @@ jobs:
         with:
           repository: test-org-runner/infra-templates
           ref: refs/heads/srujan/ci_cd
-          path: ../scripts    # Checkout outside main workspace
+          path: gha_scripts    # Checkout outside main workspace
           token: ${{ secrets.PAT }}
           sparse-checkout: |
             run_python_unittests.sh
@@ -82,13 +82,12 @@ jobs:
       - name: Run Test Script
         env:
           PYTHON_VERSION: ${{ inputs.python_version }}
-        working-directory: ${{ github.workspace }}/../scripts/  # Main workspace
+        # working-directory: ${{ github.workspace }}/../scripts/  # Main workspace
         run: |
-          chmod +x run_python_unittests.sh
-          ./run_python_unittests.sh
+          chmod +x ./gha_scripts/run_python_unittests.sh
+          ./gha_scripts/run_python_unittests.sh
 
       - name: Cleanup
         if: always()
         run: |
           rm -rf ${{ github.workspace }}
-          rm -rf ${{ github.workspace }}/../scripts
