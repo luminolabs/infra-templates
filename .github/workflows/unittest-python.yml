@@ -85,6 +85,7 @@ jobs:
         # working-directory: ${{ github.workspace }}/../scripts/  # Main workspace
         run: |
           echo $(pwd)
+          echo $(ls)
           chmod +x ./gha_scripts/run_python_unittests.sh
           ./gha_scripts/run_python_unittests.sh
 
