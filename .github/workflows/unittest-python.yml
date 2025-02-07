@@ -89,7 +89,7 @@ jobs:
           echo "Directory contents: $(ls -la)"
           echo "GHA Scripts contents: $(ls -la gha_scripts)"
           chmod +x ./../gha_scripts/scripts/run_python_unittests.sh
-          ./../gha_scripts/run_python_unittests.sh
+          ./../gha_scripts/scripts/run_python_unittests.sh
 
       - name: Cleanup
         if: always()
