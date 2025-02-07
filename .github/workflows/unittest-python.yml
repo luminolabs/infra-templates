@@ -94,4 +94,5 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          rm -rf ${{ github.workspace }}
+          rm -rf gha_scripts
+          rm -rf repo
