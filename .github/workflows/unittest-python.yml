@@ -69,7 +69,7 @@ jobs:
           ref: refs/heads/srujan/ci_cd
           token: ${{ secrets.PAT }}
           sparse-checkout: |
-            run_python_unittests.sh
+            scripts/run_python_unittests.sh
           sparse-checkout-cone-mode: false
           path: gha_scripts    # Checkout outside main workspace
 
@@ -78,6 +78,7 @@ jobs:
         with:
           repository: ${{ github.event.repository.full_name }}
           ref: ${{ github.event.pull_request.head.ref }}
+          path: repo
 
       - name: Run Test Script
         env:
