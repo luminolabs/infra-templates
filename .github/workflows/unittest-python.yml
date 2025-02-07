@@ -54,7 +54,7 @@ on:
         type: string
         default: "3.11.10"
     secrets:
-      REPO_TOKEN:
+      PAT:
         required: true
 
 jobs:
@@ -68,7 +68,7 @@ jobs:
           repository: test-org-runner/infra-templates
           ref: refs/heads/srujan/ci_cd
           path: scripts    # Checkout outside main workspace
-          token: ${{ secrets.REPO_TOKEN }}
+          token: ${{ secrets.PAT }}
           sparse-checkout: |
             run_python_unittests.sh
           sparse-checkout-cone-mode: false
