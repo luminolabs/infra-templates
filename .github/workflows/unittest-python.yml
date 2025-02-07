@@ -67,14 +67,11 @@ jobs:
         with:
           repository: test-org-runner/infra-templates
           ref: refs/heads/srujan/ci_cd
-          path: ../scripts    # Checkout outside main workspace
+          path: scripts    # Checkout outside main workspace
           token: ${{ secrets.REPO_TOKEN }}
-          # sparse-checkout: |
-          #   run_python_unittests.sh
-          # sparse-checkout-cone-mode: false
           sparse-checkout: |
             run_python_unittests.sh
-          working-directory: scripts
+          sparse-checkout-cone-mode: false
 
       - name: Checkout Code Repository
         uses: actions/checkout@v4
