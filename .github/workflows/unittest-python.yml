@@ -67,7 +67,7 @@ jobs:
         with:
           repository: test-org-runner/infra-templates
           ref: refs/heads/srujan/ci_cd
-          path: scripts    # Checkout outside main workspace
+          path: ../scripts    # Checkout outside main workspace
           token: ${{ secrets.PAT }}
           sparse-checkout: |
             run_python_unittests.sh
