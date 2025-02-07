@@ -1,3 +1,50 @@
+# name: Unit Tests:Python
+
+# on:
+#   workflow_call:
+#     inputs:
+#       python_version:
+#         type: string
+#         default: "3.11.10"
+#     secrets:
+#       REPO_TOKEN:
+#         required: true    # Add this secret
+
+# jobs:
+#   run:
+#     name: Run tests
+#     runs-on: self-hosted
+#     steps:
+#       - uses: actions/checkout@v4
+#         name: Checkout Code Repository
+#         with:
+#           repository: ${{ github.event.repository.full_name }}
+#           ref: ${{ github.event.pull_request.head.ref }}
+          
+#       - name: Checkout test scripts
+#         uses: actions/checkout@v4
+#         with:
+#           # repository: luminolabs/infra-templates
+#           repository: test-org-runner/infra-templates
+#           ref: refs/heads/srujan/ci_cd
+#           path: scripts
+#           token: ${{ secrets.REPO_TOKEN }}  # Use the token here
+
+#       - name: Run Test Script
+#         env:
+#           PYTHON_VERSION: ${{ inputs.python_version }}
+#         run: |
+#           chmod +x scripts/run_python_unittests.sh
+#           scripts/run_python_unittests.sh
+
+#       - name: Cleanup
+#         if: always()
+#         run: |
+#           REPO_PATH=$(pwd)
+#           cd ..
+#           rm -rf $REPO_PATH
+
+
 name: Unit Tests:Python
 
 on:
@@ -8,38 +55,43 @@ on:
         default: "3.11.10"
     secrets:
       REPO_TOKEN:
-        required: true    # Add this secret
+        required: true
 
 jobs:
   run:
     name: Run tests
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
-        name: Checkout Code Repository
+      - name: Checkout unit tests script
+        uses: actions/checkout@v4
+        with:
+          repository: test-org-runner/infra-templates
+          ref: refs/heads/srujan/ci_cd
+          path: ../scripts    # Checkout outside main workspace
+          token: ${{ secrets.REPO_TOKEN }}
+          # sparse-checkout: |
+          #   run_python_unittests.sh
+          # sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            run_python_unittests.sh
+          working-directory: scripts
+
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
         with:
           repository: ${{ github.event.repository.full_name }}
           ref: ${{ github.event.pull_request.head.ref }}
-          
-      - name: Checkout test scripts
-        uses: actions/checkout@v4
-        with:
-          # repository: luminolabs/infra-templates
-          repository: test-org-runner/infra-templates
-          ref: refs/heads/srujan/ci_cd
-          path: scripts
-          token: ${{ secrets.REPO_TOKEN }}  # Use the token here
 
       - name: Run Test Script
         env:
           PYTHON_VERSION: ${{ inputs.python_version }}
+        working-directory: ${{ github.workspace }}../scripts/  # Main workspace
         run: |
-          chmod +x scripts/run_python_unittests.sh
-          scripts/run_python_unittests.sh
+          chmod +x run_python_unittests.sh
+          ./run_python_unittests.sh
 
       - name: Cleanup
         if: always()
         run: |
-          REPO_PATH=$(pwd)
-          cd ..
-          rm -rf $REPO_PATH
+          rm -rf ${{ github.workspace }}
+          rm -rf ${{ github.workspace }}/../scripts
