@@ -63,7 +63,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Checkout unit tests script
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.2.2
         with:
           repository: test-org-runner/infra-templates
           ref: refs/heads/srujan/ci_cd
