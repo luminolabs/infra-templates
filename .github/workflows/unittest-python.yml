@@ -82,7 +82,7 @@ jobs:
       - name: Run Test Script
         env:
           PYTHON_VERSION: ${{ inputs.python_version }}
-        working-directory: ${{ github.workspace }}../scripts/  # Main workspace
+        working-directory: ${{ github.workspace }}/../scripts/  # Main workspace
         run: |
           chmod +x run_python_unittests.sh
           ./run_python_unittests.sh
