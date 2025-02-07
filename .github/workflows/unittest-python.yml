@@ -83,13 +83,13 @@ jobs:
       - name: Run Test Script
         env:
           PYTHON_VERSION: ${{ inputs.python_version }}
-        # working-directory: ${{ github.workspace }}/../scripts/  # Main workspace
+        working-directory: ${{ github.workspace }}/repo/  # Main workspace
         run: |
           echo "Current directory: $(pwd)"
           echo "Directory contents: $(ls -la)"
           echo "GHA Scripts contents: $(ls -la gha_scripts)"
-          chmod +x ./gha_scripts/run_python_unittests.sh
-          ./gha_scripts/run_python_unittests.sh
+          chmod +x ./../gha_scripts/scripts/run_python_unittests.sh
+          ./../gha_scripts/run_python_unittests.sh
 
       - name: Cleanup
         if: always()
