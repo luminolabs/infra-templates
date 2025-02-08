@@ -48,6 +48,17 @@ PYTHON_VERSION=${PYTHON_VERSION:-"3.11.10"}
 
 # Function to setup pyenv
 setup_pyenv() {
+
+    # First check if pyenv exists in common locations
+    if [ -d "$HOME/.pyenv" ]; then
+        echo "Found pyenv in $HOME/.pyenv"
+        export PYENV_ROOT="$HOME/.pyenv"
+        export PATH="$PYENV_ROOT/bin:$PATH"
+        eval "$(pyenv init -)"
+        eval "$(pyenv virtualenv-init -)"
+        return 0
+    fi
+
    if ! command -v pyenv &> /dev/null; then
        echo "Installing pyenv..."
        # Remove existing pyenv if installation failed previously
