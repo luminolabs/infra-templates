@@ -41,7 +41,7 @@ jobs:
           key: pyenv-${{ inputs.python_version }}
       
       - name: Cache PIP dependencies - Main
-        uses: actions/checkout@v4
+        uses: actions/cache@v4
         id: main-pip-cache
         with:
           path: |
@@ -52,7 +52,7 @@ jobs:
             pip-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}-main-
       
       - name: Cache PIP dependencies - Test
-        uses: actions/checkout@v4
+        uses: actions/cache@v4
         id: test-pip-cache
         with:
           path: |
