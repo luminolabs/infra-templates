@@ -69,11 +69,9 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PYENV_CACHE_HIT: ${{ steps.pyenv-cache.outputs.cache-hit }}
           MAIN_PIP_CACHE_HIT: ${{ steps.main-pip-cache.outputs.cache-hit }}
-          TEST_PIP_CACHE_HIT: $${{ steps.test-pip-cache.outputs.cache-hit }}
+          TEST_PIP_CACHE_HIT: ${{ steps.test-pip-cache.outputs.cache-hit }}
         working-directory: ${{ github.workspace }}/repo/  # Main workspace
         run: |
-          echo $MAIN_PIP_CACHE_HIT
-          echo $TEST_PIP_CACHE_HIT
           echo "Current directory: $(pwd)"
           echo "Directory contents: $(ls -la)"
           # echo "GHA Scripts contents: $(ls -la gha_scripts)"
