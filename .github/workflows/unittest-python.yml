@@ -72,6 +72,8 @@ jobs:
           TEST_PIP_CACHE_HIT: $${{ steps.test-pip-cache.outputs.cache-hit }}
         working-directory: ${{ github.workspace }}/repo/  # Main workspace
         run: |
+          echo "$(MAIN_PIP_CACHE_HIT)"
+          echo "$(TEST_PIP_CACHE_HIT)"
           echo "Current directory: $(pwd)"
           echo "Directory contents: $(ls -la)"
           # echo "GHA Scripts contents: $(ls -la gha_scripts)"
