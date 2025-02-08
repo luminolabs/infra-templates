@@ -98,6 +98,7 @@ VENV_DIR="venv"
 if [ -d "$VENV_DIR" ]; then
    rm -rf "$VENV_DIR"
 fi
+
 python -m venv $VENV_DIR
 source $VENV_DIR/bin/activate
 
@@ -138,7 +139,8 @@ else
 fi
 
 # Run tests
-PYTHONPATH=$(pwd) pytest $(pwd)/tests -v
+# PYTHONPATH=$(pwd) pytest $(pwd)/tests -v
+$VENV_DIR/bin/pytest $(pwd)/tests -v
 
 # Deactivate
 deactivate
