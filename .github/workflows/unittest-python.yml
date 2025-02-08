@@ -79,8 +79,8 @@ jobs:
           ./../gha_scripts/scripts/run_python_unittests.sh
 
 
-      - name: Cleanup
-        if: always()
-        run: |
-          rm -rf gha_scripts
-          rm -rf repo
+      # - name: Cleanup
+      #   if: always()
+      #   run: |
+      #     rm -rf gha_scripts
+      #     rm -rf repo
