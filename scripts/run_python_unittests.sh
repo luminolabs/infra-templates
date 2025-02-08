@@ -92,7 +92,8 @@ fi
 pyenv local $PYTHON_VERSION
 
 # Create version-specific venv directory
-VENV_DIR="venv-$PYTHON_VERSION"
+# VENV_DIR="venv-$PYTHON_VERSION"
+VENV_DIR="venv"
 # Remove existing venv if it exists
 if [ -d "$VENV_DIR" ]; then
    rm -rf "$VENV_DIR"
