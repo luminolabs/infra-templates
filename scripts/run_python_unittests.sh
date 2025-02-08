@@ -140,7 +140,7 @@ fi
 
 # Run tests
 # PYTHONPATH=$(pwd) pytest $(pwd)/tests -v
-$VENV_DIR/bin/pytest $(pwd)/tests -v
+$(pwd)/$VENV_DIR/bin/pytest $(pwd)/tests -v
 
 # Deactivate
 deactivate
