@@ -1,3 +1,90 @@
+# name: Unit Tests:Python
+
+# on:
+#   workflow_call:
+#     inputs:
+#       python_version:
+#         type: string
+#         default: "3.11.10"
+#     secrets:
+#       PAT:
+#         required: true
+
+# jobs:
+#   run:
+#     name: Run tests
+#     runs-on: self-hosted
+#     steps:
+#       - name: Checkout unit tests script
+#         uses: actions/checkout@v4.2.2
+#         with:
+#           repository: test-org-runner/infra-templates
+#           ref: refs/heads/srujan/ci_cd
+#           token: ${{ secrets.PAT }}
+#           sparse-checkout: |
+#             scripts/run_python_unittests.sh
+#           sparse-checkout-cone-mode: false
+#           path: gha_scripts    # Checkout outside main workspace
+
+#       - name: Checkout Code Repository
+#         uses: actions/checkout@v4
+#         with:
+#           repository: ${{ github.event.repository.full_name }}
+#           ref: ${{ github.event.pull_request.head.ref }}
+#           path: repo
+      
+#       - name: Cache pyenv
+#         uses: actions/cache@v4
+#         id: pyenv-cache
+#         with:
+#           path: ~/.pyenv
+#           key: pyenv-${{ inputs.python_version }}
+      
+#       - name: Cache PIP dependencies - Main
+#         uses: actions/cache@v4
+#         id: main-pip-cache
+#         with:
+#           path: |
+#             ~/.cache/pip/${{ github.event.repository.name }}/${{ github.event.pull_request.number }}/main
+#             repo/venv/lib/python${{ inputs.python_version }}/site-packages
+#           key: pip-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}-main-${{ hashFiles('repo/requirements.txt') }}
+#           restore-keys: |
+#             pip-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}-main-
+      
+#       - name: Cache PIP dependencies - Test
+#         uses: actions/cache@v4
+#         id: test-pip-cache
+#         with:
+#           path: |
+#             ~/.cache/pip/${{ github.event.repository.name }}/${{ github.event.pull_request.number }}/test
+#             repo/venv/lib/python${{ inputs.python_version }}/site-packages
+#           key: pip-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}-test-${{ hashFiles('repo/requirements-test.txt') }}
+#           restore-keys: |
+#             pip-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}-test-
+
+#       - name: Run Test Script
+#         env:
+#           PYTHON_VERSION: ${{ inputs.python_version }}
+#           REPO_NAME: ${{ github.event.repository.name }}
+#           PR_NUMBER: ${{ github.event.pull_request.number }}
+#           PYENV_CACHE_HIT: ${{ steps.pyenv-cache.outputs.cache-hit }}
+#           MAIN_PIP_CACHE_HIT: ${{ steps.main-pip-cache.outputs.cache-hit }}
+#           TEST_PIP_CACHE_HIT: ${{ steps.test-pip-cache.outputs.cache-hit }}
+#         working-directory: ${{ github.workspace }}/repo/  # Main workspace
+#         run: |
+#           echo "Current directory: $(pwd)"
+#           echo "Directory contents: $(ls -la)"
+#           # echo "GHA Scripts contents: $(ls -la gha_scripts)"
+#           chmod +x ./../gha_scripts/scripts/run_python_unittests.sh
+#           ./../gha_scripts/scripts/run_python_unittests.sh
+
+
+#       - name: Cleanup
+#         if: always()
+#         run: |
+#           rm -rf gha_scripts
+#           rm -rf repo
+
 name: Unit Tests:Python
 
 on:
@@ -32,55 +119,53 @@ jobs:
           repository: ${{ github.event.repository.full_name }}
           ref: ${{ github.event.pull_request.head.ref }}
           path: repo
-      
-      - name: Cache pyenv
+          fetch-depth: 0
+
+      # Cache base/common virtualenv
+      - name: Cache base virtualenv
         uses: actions/cache@v4
-        id: pyenv-cache
+        id: base-venv-cache
         with:
-          path: ~/.pyenv
-          key: pyenv-${{ inputs.python_version }}
-      
-      - name: Cache PIP dependencies - Main
+          path: ~/.pyenv/virtualenvs/venv-${{ github.event.repository.name }}-base
+          key: pyenv-${{ github.event.repository.name }}-base-v${{ inputs.python_version }}-${{ hashFiles('repo/main/requirements.txt', 'repo/main/requirements-test.txt') }}
+
+      # Check if requirements.txt/requirements-text.txt changed in PR
+      - name: Check dependency changes
+        id: dep-changes
+        working-directory: repo
+        run: |
+          git fetch origin main
+          REQS_CHANGED=$(git diff origin/main...HEAD -- requirements.txt requirements-test.txt)
+          if [ -n "$REQS_CHANGED" ]; then
+            echo "dependencies_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "dependencies_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Cache PR virtualenv only if requirements.txt/requirements-text.txt changed
+      - name: Cache PR virtualenv
+        if: steps.dep-changes.outputs.dependencies_changed == 'true'
         uses: actions/cache@v4
-        id: main-pip-cache
+        id: pr-venv-cache
         with:
-          path: |
-            ~/.cache/pip/${{ github.event.repository.name }}/${{ github.event.pull_request.number }}/main
-            repo/venv/lib/python${{ inputs.python_version }}/site-packages
-          key: pip-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}-main-${{ hashFiles('repo/requirements.txt') }}
-          restore-keys: |
-            pip-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}-main-
-      
-      - name: Cache PIP dependencies - Test
-        uses: actions/cache@v4
-        id: test-pip-cache
-        with:
-          path: |
-            ~/.cache/pip/${{ github.event.repository.name }}/${{ github.event.pull_request.number }}/test
-            repo/venv/lib/python${{ inputs.python_version }}/site-packages
-          key: pip-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}-test-${{ hashFiles('repo/requirements-test.txt') }}
-          restore-keys: |
-            pip-${{ github.event.repository.name }}-${{ github.event.pull_request.number }}-test-
+          path: ~/.pyenv/virtualenvs/venv-${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}
+          key: pyenv-${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}-v${{ inputs.python_version }}-${{ hashFiles('repo/requirements.txt', 'repo/requirements-test.txt') }}
 
       - name: Run Test Script
         env:
           PYTHON_VERSION: ${{ inputs.python_version }}
           REPO_NAME: ${{ github.event.repository.name }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          PYENV_CACHE_HIT: ${{ steps.pyenv-cache.outputs.cache-hit }}
-          MAIN_PIP_CACHE_HIT: ${{ steps.main-pip-cache.outputs.cache-hit }}
-          TEST_PIP_CACHE_HIT: ${{ steps.test-pip-cache.outputs.cache-hit }}
-        working-directory: ${{ github.workspace }}/repo/  # Main workspace
+          BASE_VENV_CACHE_HIT: ${{ steps.base-venv-cache.outputs.cache-hit }}
+          PR_VENV_CACHE_HIT: ${{ steps.pr-venv-cache.outputs.cache-hit }}
+          REQS_CHANGED: ${{ steps.dep-changes.outputs.dependencies_changed }}
+        working-directory: ${{ github.workspace }}/repo/
         run: |
-          echo "Current directory: $(pwd)"
-          echo "Directory contents: $(ls -la)"
-          # echo "GHA Scripts contents: $(ls -la gha_scripts)"
           chmod +x ./../gha_scripts/scripts/run_python_unittests.sh
           ./../gha_scripts/scripts/run_python_unittests.sh
 
-
-      # - name: Cleanup
-      #   if: always()
-      #   run: |
-      #     rm -rf gha_scripts
-      #     rm -rf repo
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -rf gha_scripts
+          rm -rf repo
