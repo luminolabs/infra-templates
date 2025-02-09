@@ -127,7 +127,7 @@ jobs:
         id: base-venv-cache
         with:
           path: ~/.pyenv/virtualenvs/venv-${{ github.event.repository.name }}/base
-          key: pyenv-${{ github.event.repository.name }}-base-v${{ inputs.python_version }}-${{ hashFiles('repo/main/requirements.txt', 'repo/main/requirements-test.txt') }}
+          key: pyenv-${{ github.event.repository.name }}-base-v${{ inputs.python_version }}-${{ hashFiles('repo/requirements.txt', 'repo/requirements-test.txt') }}
 
       # Check if requirements.txt/requirements-text.txt changed in PR
       - name: Check dependency changes
