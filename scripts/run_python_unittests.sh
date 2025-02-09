@@ -211,6 +211,7 @@ if [ "$BASE_VENV_CACHE_HIT" != 'true' ]; then
     echo "Setting up base virtualenv"
     pyenv install -s $PYTHON_VERSION
     pyenv virtualenv -f $PYTHON_VERSION $BASE_VENV_NAME
+    mkdir -p ~/.pyenv/virtualenvs/venv-$REPO_NAME/base
     pyenv activate $BASE_VENV_NAME
     # git checkout origin/main
     pip install --upgrade pip setuptools wheel
@@ -224,6 +225,7 @@ if [ "$REQS_CHANGED" == 'true' ]; then
     if [ "$PR_VENV_CACHE_HIT" != 'true' ]; then
         echo "Dependencies changed, setting up PR virtualenv"
         pyenv virtualenv -f $PYTHON_VERSION $PR_VENV_NAME
+        mkdir -p ~/.pyenv/virtualenvs/venv-$REPO_NAME/pr$PR_NUMBER
         pyenv activate $PR_VENV_NAME
         pip install --upgrade pip setuptools wheel
         pip install -r requirements.txt -r requirements-test.txt
