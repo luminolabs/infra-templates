@@ -156,8 +156,8 @@
 set -e
 
 PYTHON_VERSION=${PYTHON_VERSION:-"3.11.10"}
-BASE_VENV_NAME="venv-base-$PYTHON_VERSION"
-PR_VENV_NAME="venv-pr-$PYTHON_VERSION"
+BASE_VENV_NAME="venv-$REPO_NAME-base-$PYTHON_VERSION"
+PR_VENV_NAME="venv-$REPO_NAME-pr$PR_NUMBER-$PYTHON_VERSION"
 
 # Function to setup pyenv
 setup_pyenv() {
@@ -190,6 +190,13 @@ setup_pyenv
 
 # Setup base virtualenv if no cache
 if [ "$BASE_VENV_CACHE_HIT" != 'true' ]; then
+    # Check if Python version exists before installing
+    if ! pyenv versions | grep -q $PYTHON_VERSION; then
+        echo "Installing Python $PYTHON_VERSION"
+        pyenv install $PYTHON_VERSION
+    else
+        echo "Python $PYTHON_VERSION already installed"
+    fi
     echo "Setting up base virtualenv"
     # pyenv install -s $PYTHON_VERSION
     pyenv virtualenv -f $PYTHON_VERSION $BASE_VENV_NAME
