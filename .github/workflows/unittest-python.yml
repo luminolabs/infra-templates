@@ -126,7 +126,7 @@ jobs:
         uses: actions/cache@v4
         id: base-venv-cache
         with:
-          path: ~/.pyenv/virtualenvs/venv-${{ github.event.repository.name }}-base
+          path: ~/.pyenv/virtualenvs/venv-${{ github.event.repository.name }}/base
           key: pyenv-${{ github.event.repository.name }}-base-v${{ inputs.python_version }}-${{ hashFiles('repo/main/requirements.txt', 'repo/main/requirements-test.txt') }}
 
       # Check if requirements.txt/requirements-text.txt changed in PR
@@ -148,7 +148,7 @@ jobs:
         uses: actions/cache@v4
         id: pr-venv-cache
         with:
-          path: ~/.pyenv/virtualenvs/venv-${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}
+          path: ~/.pyenv/virtualenvs/venv-${{ github.event.repository.name }}/pr${{ github.event.pull_request.number }}
           key: pyenv-${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}-v${{ inputs.python_version }}-${{ hashFiles('repo/requirements.txt', 'repo/requirements-test.txt') }}
 
       - name: Run Test Script
