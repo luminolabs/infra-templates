@@ -35,41 +35,50 @@ setup_pyenv() {
 
 setup_pyenv
 
-# Setup base virtualenv if no cache
-if [ "$BASE_VENV_CACHE_HIT" != 'true' ]; then
+# # Handle Python version check without pipe
+# pyenv versions > /tmp/pyenv_versions
+# if ! grep -q $PYTHON_VERSION /tmp/pyenv_versions; then
+#     pyenv install $PYTHON_VERSION
+# else
+#     echo "Python $PYTHON_VERSION already installed"
+# fi
 
-    # Check if Python version exists before installing
-    if ! pyenv versions | grep -q $PYTHON_VERSION; then
-        pyenv install $PYTHON_VERSION
-    else
-        echo "Python $PYTHON_VERSION already installed"
-    fi
+# Create a temporary file with unique name and ensure cleanup
+TEMP_FILE=$(mktemp)
+trap 'rm -f $TEMP_FILE' EXIT  # Will delete temp file when script exits
 
-    echo "Setting up base virtualenv"
-    pyenv virtualenv -f $PYTHON_VERSION $BASE_VENV_NAME
-    pyenv activate $BASE_VENV_NAME
+# Handle Python version check without pipe using temp file
+pyenv versions > "$TEMP_FILE"
+if ! grep -q $PYTHON_VERSION "$TEMP_FILE"; then
+    pyenv install $PYTHON_VERSION
+else
+    echo "Python $PYTHON_VERSION already installed"
+fi
+
+# Determine which virtualenv to use/create
+if [ "$REQS_CHANGED" == 'true' ]; then
+    echo "Requirements changed, using PR virtualenv"
+    VENV_NAME=$PR_VENV_NAME
+    CACHE_HIT=$PR_VENV_CACHE_HIT
+else
+    echo "Using base virtualenv"
+    VENV_NAME=$BASE_VENV_NAME
+    CACHE_HIT=$BASE_VENV_CACHE_HIT
+fi
+
+# Setup virtualenv if needed (if cache miss)
+if [ "$CACHE_HIT" != 'true' ]; then
+    echo "Setting up virtualenv: $VENV_NAME"
+    pyenv virtualenv -f $PYTHON_VERSION $VENV_NAME
+    pyenv activate $VENV_NAME
     pip install --upgrade pip setuptools wheel
     pip install -r requirements.txt -r requirements-test.txt
     pyenv deactivate
-fi
-
-# Setup PR virtualenv only if requirements.txt/requirements-test.txt changed
-if [ "$REQS_CHANGED" == 'true' ]; then
-    if [ "$PR_VENV_CACHE_HIT" != 'true' ]; then
-        echo "Dependencies changed, setting up PR virtualenv"
-        pyenv virtualenv -f $PYTHON_VERSION $PR_VENV_NAME
-        pyenv activate $PR_VENV_NAME
-        pip install --upgrade pip setuptools wheel
-        pip install -r requirements.txt -r requirements-test.txt
-        pyenv deactivate
-    fi
-    VENV_TO_USE=$PR_VENV_NAME
 else
-    echo "Using base virtualenv"
-    VENV_TO_USE=$BASE_VENV_NAME
+    echo "Using cached virtualenv: $VENV_NAME"
 fi
 
-# Run tests using appropriate virtualenv
-pyenv activate $VENV_TO_USE
+# Run tests
+pyenv activate $VENV_NAME
 PYTHONPATH=$(pwd) python -m pytest tests/ -v
 pyenv deactivate
