@@ -62,7 +62,7 @@ jobs:
         if: steps.dep-changes.outputs.dependencies_changed == 'true'
         id: pr-venv-cache
         with:
-          path: ~/.pyenv/virtualenvs/venv-${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}-${{ inputs.python_version }}
+          path: ~/.pyenv/versions/venv-${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}-${{ inputs.python_version }}
           key: pyenv-${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}-v${{ inputs.python_version }}-${{ hashFiles('repo/requirements.txt', 'repo/requirements-test.txt') }}
 
       - name: Run Test Script
