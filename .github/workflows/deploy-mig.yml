@@ -11,6 +11,10 @@ on:
       resources_project_id:
         required: false
         type: string
+        default: neat-airport-407301
+      mig_project_id:
+        required: false
+        type: string
         default: eng-ai-dev
       region:
         required: false
@@ -23,6 +27,7 @@ on:
 
 env:
   RESOURCES_PROJECT_ID: ${{ inputs.resources_project_id }}
+  MIG_PROJECT_ID: ${{ inputs.mig_project_id }}
   REGION: ${{ inputs.region }}
   ZONE: ${{ inputs.zone }}
 
@@ -35,10 +40,10 @@ jobs:
       - name: Get Current Image from MIG
         id: get-current
         run: |
-          echo "Looking for MIG in zone ${{ env.ZONE }}"
+          echo "Looking for MIG in project ${{ env.MIG_PROJECT_ID }}, zone ${{ env.ZONE }}"
           # Get the current template name
           TEMPLATE_NAME=$(gcloud compute instance-groups managed describe ${{ inputs.mig_name }} \
-            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --project=${{ env.MIG_PROJECT_ID }} \
             --zone=${{ env.ZONE }} \
             --format="get(instanceTemplate)")
             
@@ -46,7 +51,7 @@ jobs:
           
           # Get the image from template
           CURRENT_IMAGE=$(gcloud compute instance-templates describe $TEMPLATE_NAME \
-            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --project=${{ env.MIG_PROJECT_ID }} \
             --format="get(properties.disks[0].initializeParams.sourceImage)")
           
           echo "current_image=$CURRENT_IMAGE" >> $GITHUB_OUTPUT
@@ -59,7 +64,7 @@ jobs:
       - name: Get Latest Image
         id: get-latest
         run: |
-          # Get the latest image for the app
+          # Get the latest image for the app from resources project
           LATEST_IMAGE=$(gcloud compute images list \
             --project=${{ env.RESOURCES_PROJECT_ID }} \
             --filter="name ~ ${{ inputs.app_name }}-image-" \
@@ -76,9 +81,9 @@ jobs:
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
           TEMPLATE_NAME="${{ inputs.app_name }}-template-${TIMESTAMP}"
           
-          # Create new instance template with the latest image
+          # Create new instance template in MIG project
           gcloud compute instance-templates create $TEMPLATE_NAME \
-            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --project=${{ env.MIG_PROJECT_ID }} \
             --image=${{ steps.get-latest.outputs.latest_image }} \
             --image-project=${{ env.RESOURCES_PROJECT_ID }}
           
@@ -86,9 +91,9 @@ jobs:
 
       - name: Update MIG
         run: |
-          # Update zonal MIG
+          echo "Updating MIG in project ${{ env.MIG_PROJECT_ID }}, zone ${{ env.ZONE }}"
           gcloud compute instance-groups managed rolling-action start-update ${{ inputs.mig_name }} \
-            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --project=${{ env.MIG_PROJECT_ID }} \
             --zone=${{ env.ZONE }} \
             --version=template=${{ steps.create-template.outputs.template_name }}
 
