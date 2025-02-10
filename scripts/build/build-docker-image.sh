@@ -10,7 +10,7 @@
 # Constants
 VERSION=$(cat VERSION)-$BUILD_SHA
 
-echo "Building the Docker image; version $VERSION..."
+echo "Building $SERVICE_NAME Docker image; version $VERSION..."
 docker build -t $SERVICE_NAME:local .
 docker tag $SERVICE_NAME:local $ARTIFACT_REPO_URL/$SERVICE_NAME:$VERSION
 docker tag $SERVICE_NAME:local $ARTIFACT_REPO_URL/$SERVICE_NAME:latest

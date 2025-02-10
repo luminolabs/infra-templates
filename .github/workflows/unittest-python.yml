@@ -22,7 +22,7 @@ jobs:
           ref: refs/heads/srujan/ci_cd
           token: ${{ secrets.PAT }}
           sparse-checkout: |
-            scripts/run_python_unittests.sh
+            scripts/unittest-python.sh
           sparse-checkout-cone-mode: false
           fetch-depth: 0
           path: gha_scripts    # Checkout outside main workspace
