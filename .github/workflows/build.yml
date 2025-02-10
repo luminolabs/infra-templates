@@ -52,7 +52,7 @@ jobs:
     needs: start-image-creator
     runs-on: [self-hosted]
     steps:
-      - name: Checkout unit tests script
+      - name: Checkout build scripts
         uses: actions/checkout@v4.2.2
         with:
           repository: test-org-runner/infra-templates
