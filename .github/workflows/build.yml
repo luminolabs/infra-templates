@@ -40,7 +40,7 @@ env:
 
 jobs:
   start-image-creator:
-    runs-on: self-hosted-runner
+    runs-on: self-hosted
     steps:
       - name: Start Image Creator VM
         run: |
@@ -50,7 +50,7 @@ jobs:
           
   build:
     needs: start-image-creator
-    runs-on: [self-hosted]
+    runs-on: self-hosted
     steps:
       - name: Checkout build scripts
         uses: actions/checkout@v4.2.2
@@ -115,7 +115,7 @@ jobs:
         
 #   stop-image-creator:
 #     needs: artifact
-#     runs-on: self-hosted-runner
+#     runs-on: self-hosted
 #     steps:
 #       - name: Stop Image Creator VM
 #         run: |
@@ -125,7 +125,7 @@ jobs:
             
 #   create-vm-image:
 #     needs: stop-image-creator
-#     runs-on: self-hosted-runner
+#     runs-on: self-hosted
 #     steps:
 #       - name: Create new VM Image
 #         run: |
