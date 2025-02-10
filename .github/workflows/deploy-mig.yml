@@ -1,0 +1,104 @@
+name: Deploy to MIG
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        required: true
+        type: string
+      mig_name:
+        required: true
+        type: string
+      resources_project_id:
+        required: false
+        type: string
+        default: neat-airport-407301
+      region:
+        required: false
+        type: string
+        default: us-central1
+      zone:
+        required: false
+        type: string
+        default: us-central1-a
+
+env:
+  RESOURCES_PROJECT_ID: ${{ inputs.resources_project_id }}
+  REGION: ${{ inputs.region }}
+  ZONE: ${{ inputs.zone }}
+
+jobs:
+  cleanup-old-image:
+    runs-on: self-hosted
+    outputs:
+      old_image: ${{ steps.get-current.outputs.image }}
+    steps:
+      - name: Get Current Image from MIG
+        id: get-current
+        run: |
+          # Get the current template name
+          TEMPLATE_NAME=$(gcloud compute instance-groups managed describe ${{ inputs.mig_name }} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --zone=${{ env.ZONE }} \
+            --format="get(instanceTemplate)")
+          
+          # Get the image from template
+          CURRENT_IMAGE=$(gcloud compute instance-templates describe $TEMPLATE_NAME \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --format="get(properties.disks[0].initializeParams.sourceImage)")
+          
+          echo "current_image=$CURRENT_IMAGE" >> $GITHUB_OUTPUT
+          echo "Current image: $CURRENT_IMAGE"
+
+  deploy-new-image:
+    needs: cleanup-old-image
+    runs-on: self-hosted
+    steps:
+      - name: Get Latest Image
+        id: get-latest
+        run: |
+          # Get the latest image for the app
+          LATEST_IMAGE=$(gcloud compute images list \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --filter="name ~ ${{ inputs.app_name }}-image-" \
+            --sort-by=~creationTimestamp \
+            --limit=1 \
+            --format="get(name)")
+          
+          echo "latest_image=$LATEST_IMAGE" >> $GITHUB_OUTPUT
+          echo "Latest image: $LATEST_IMAGE"
+
+      - name: Create New Instance Template
+        id: create-template
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          TEMPLATE_NAME="${{ inputs.app_name }}-template-${TIMESTAMP}"
+          
+          # Create new instance template with the latest image
+          gcloud compute instance-templates create $TEMPLATE_NAME \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --image=${{ steps.get-latest.outputs.latest_image }} \
+            --image-project=${{ env.RESOURCES_PROJECT_ID }}
+          
+          echo "template_name=$TEMPLATE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Update MIG
+        run: |
+          # Update MIG with new template
+          gcloud compute instance-groups managed rolling-action start-update ${{ inputs.mig_name }} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --zone=${{ env.ZONE }} \
+            --version=template=${{ steps.create-template.outputs.template_name }}
+
+  cleanup:
+    needs: [cleanup-old-image, deploy-new-image]
+    runs-on: self-hosted
+    if: success()
+    steps:
+      - name: Delete Old Image
+        run: |
+          if [[ -n "${{ needs.cleanup-old-image.outputs.old_image }}" ]]; then
+            echo "Deleting old image: ${{ needs.cleanup-old-image.outputs.old_image }}"
+            gcloud compute images delete ${{ needs.cleanup-old-image.outputs.old_image }} \
+              --project=${{ env.RESOURCES_PROJECT_ID }} \
+              --quiet || true
+          fi
