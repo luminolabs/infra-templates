@@ -86,19 +86,11 @@ jobs:
 
       - name: Update MIG
         run: |
-          if [[ "${{ steps.get-current.outputs.is_regional }}" == "true" ]]; then
-            # Update regional MIG
-            gcloud compute instance-groups managed rolling-action start-update ${{ inputs.mig_name }} \
-              --project=${{ env.RESOURCES_PROJECT_ID }} \
-              --region=${{ env.REGION }} \
-              --version=template=${{ steps.create-template.outputs.template_name }}
-          else
-            # Update zonal MIG
-            gcloud compute instance-groups managed rolling-action start-update ${{ inputs.mig_name }} \
-              --project=${{ env.RESOURCES_PROJECT_ID }} \
-              --zone=${{ env.ZONE }} \
-              --version=template=${{ steps.create-template.outputs.template_name }}
-          fi
+          # Update zonal MIG
+          gcloud compute instance-groups managed rolling-action start-update ${{ inputs.mig_name }} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --zone=${{ env.ZONE }} \
+            --version=template=${{ steps.create-template.outputs.template_name }}
 
   cleanup:
     needs: [cleanup-old-image, deploy-new-image]
