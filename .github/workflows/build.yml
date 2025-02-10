@@ -101,8 +101,8 @@ jobs:
           gcloud compute ssh ${{ inputs.image_creator_instance }} \
             --project=${{ env.RESOURCES_PROJECT_ID }} \
             --zone=${{ env.ZONE }} \
-            --command="docker system prune -f && \
-                      docker pull ${{ env.ARTIFACT_REPO_URL }}/${{ inputs.app_name }}:latest || true"
+            --command="sudo docker system prune -f && \
+                      sudo docker pull ${{ env.ARTIFACT_REPO_URL }}/${{ inputs.app_name }}:latest || true"
         
   stop-image-creator:
     needs: [start-image-creator, pull-artifact]
