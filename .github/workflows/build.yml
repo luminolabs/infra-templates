@@ -23,10 +23,6 @@ on:
         required: false
         type: string
         default: us-central1-a
-      code_repo_dir:
-        required: false
-        type: string
-        default: ""
     secrets:
       PAT:
         required: true
@@ -36,7 +32,6 @@ env:
   REGION: ${{ inputs.region }}
   ZONE: ${{ inputs.zone }}
   ARTIFACT_REPO_URL: ${{ inputs.region }}-docker.pkg.dev/${{ inputs.resources_project_id }}/lum-docker-images
-#   CODE_REPO_DIR: ${{ inputs.code_repo_dir || format('/{0}', inputs.app_name) }}
 
 jobs:
   start-image-creator:
@@ -49,7 +44,6 @@ jobs:
             --zone=${{ env.ZONE }}
           
   build:
-    needs: start-image-creator
     runs-on: self-hosted
     steps:
       - name: Checkout build scripts
@@ -62,7 +56,6 @@ jobs:
             scripts/build
           sparse-checkout-cone-mode: false
           fetch-depth: 0
-        #   path: gha_scripts    # Checkout outside main workspace
 
       - name: Checkout Code Repository
         uses: actions/checkout@v4
@@ -72,30 +65,16 @@ jobs:
           path: repo
           fetch-depth: 0
 
-    #   - name: Setup Git Config
-    #     run: |
-    #       git config --global --add safe.directory ${{ env.CODE_REPO_DIR }}
-          
-    #   - name: Pull Latest Code
-    #     run: |
-    #       ssh-agent bash -c "ssh-add ~/.ssh/id_rsa; git -c core.sshCommand='ssh -o StrictHostKeyChecking=no' pull"
-
       - name: Build Docker Image
         env:
           SERVICE_NAME: ${{ inputs.app_name }}
           ARTIFACT_REPO_URL: ${{ env.ARTIFACT_REPO_URL }}
-        #   CODE_REPO_DIR: ${{ env.CODE_REPO_DIR }}
           BUILD_SHA: ${{ inputs.build_sha }}
         working-directory: ${{ github.workspace }}/repo/
         run: |
-          # Execute the build script
+          echo "Executing build script"
           chmod +x ./../scripts/build/build-docker-image.sh
           ./../scripts/build/build-docker-image.sh
-          
-    #   - name: Run Tests
-    #     run: |
-    #       # Add your test commands here
-    #       echo "Running tests..."
  
   artifact:
     needs: build
@@ -105,23 +84,35 @@ jobs:
         env:
             SERVICE_NAME: ${{ inputs.app_name }}
             ARTIFACT_REPO_URL: ${{ env.ARTIFACT_REPO_URL }}
-        #   CODE_REPO_DIR: ${{ env.CODE_REPO_DIR }}
             BUILD_SHA: ${{ inputs.build_sha }}
         working-directory: ${{ github.workspace }}/repo/
         run: |
-          # Execute the artifact script
+          echo "Executing artifact script"
           chmod +x ./../scripts/build/artifact.sh
           ./../scripts/build/artifact.sh
+
+  pull-artifact:
+    needs: [start-image-creator, artifact]
+    runs-on: self-hosted
+    steps:
+      - name: Clean and Pull Latest Docker Image on Image Creator VM
+        run: |
+          # Clean up and pull latest image for next build
+          gcloud compute ssh ${{ inputs.image_creator_instance }} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --zone=${{ env.ZONE }} \
+            --command="docker system prune -f && \
+                      docker pull ${{ env.ARTIFACT_REPO_URL }}/${{ inputs.app_name }}:latest || true"
         
-#   stop-image-creator:
-#     needs: artifact
-#     runs-on: self-hosted
-#     steps:
-#       - name: Stop Image Creator VM
-#         run: |
-#           gcloud compute instances stop ${{ inputs.image_creator_instance }} \
-#             --project=${{ env.RESOURCES_PROJECT_ID }} \
-#             --zone=${{ env.ZONE }}
+  stop-image-creator:
+    needs: [start-image-creator, pull-artifact]
+    runs-on: self-hosted
+    steps:
+      - name: Stop Image Creator VM
+        run: |
+          gcloud compute instances stop ${{ inputs.image_creator_instance }} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --zone=${{ env.ZONE }}
             
 #   create-vm-image:
 #     needs: stop-image-creator
