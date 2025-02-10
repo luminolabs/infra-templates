@@ -114,12 +114,20 @@ jobs:
             --project=${{ env.RESOURCES_PROJECT_ID }} \
             --zone=${{ env.ZONE }}
             
-#   create-vm-image:
-#     needs: stop-image-creator
-#     runs-on: self-hosted
-#     steps:
-#       - name: Create new VM Image
-#         run: |
-#           # Add commands to create new VM image
-#           echo "Creating new VM image..."
-#           sleep 30  # Adjust sleep time as needed
+  create-vm-image:
+    needs: stop-image-creator
+    runs-on: self-hosted
+    steps:
+      - name: Create VM Image from Image Creator VM
+        run: |
+          # Wait for instance to be fully stopped
+          sleep 15
+          
+          # Create the image
+          gcloud compute images create ${{ inputs.app_name }}-image-${TIMESTAMP} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --source-disk=${{ inputs.image_creator_instance }} \
+            --source-disk-zone=${{ env.ZONE }} \
+            --storage-location=us \
+            --force \
+            --family=${{ inputs.app_name }}-images
