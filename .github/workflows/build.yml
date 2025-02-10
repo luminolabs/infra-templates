@@ -124,7 +124,7 @@ jobs:
           sleep 15
           
           # Create the image
-          gcloud compute images create ${{ inputs.app_name }}-image-${TIMESTAMP} \
+          gcloud compute images create ${{ inputs.app_name }}-image-${{ inputs.build_sha }} \
             --project=${{ env.RESOURCES_PROJECT_ID }} \
             --source-disk=${{ inputs.image_creator_instance }} \
             --source-disk-zone=${{ env.ZONE }} \
