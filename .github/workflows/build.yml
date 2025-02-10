@@ -1,0 +1,134 @@
+name: Build
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        required: true
+        type: string
+      build_sha:
+        required: true
+        type: string        
+      image_creator_instance:
+        required: true
+        type: string
+      resources_project_id:
+        required: false
+        type: string
+        default: neat-airport-407301
+      region:
+        required: false
+        type: string
+        default: us-central1
+      zone:
+        required: false
+        type: string
+        default: us-central1-a
+      code_repo_dir:
+        required: false
+        type: string
+        default: ""
+    secrets:
+      PAT:
+        required: true
+
+env:
+  RESOURCES_PROJECT_ID: ${{ inputs.resources_project_id }}
+  REGION: ${{ inputs.region }}
+  ZONE: ${{ inputs.zone }}
+  ARTIFACT_REPO_URL: ${{ inputs.region }}-docker.pkg.dev/${{ inputs.resources_project_id }}/lum-docker-images
+#   CODE_REPO_DIR: ${{ inputs.code_repo_dir || format('/{0}', inputs.app_name) }}
+
+jobs:
+  start-image-creator:
+    runs-on: self-hosted-runner
+    steps:
+      - name: Start Image Creator VM
+        run: |
+          gcloud compute instances start ${{ inputs.image_creator_instance }} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --zone=${{ env.ZONE }}
+          
+  build:
+    needs: start-image-creator
+    runs-on: [self-hosted]
+    steps:
+      - name: Checkout unit tests script
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: test-org-runner/infra-templates
+          ref: refs/heads/srujan/ci_cd
+          token: ${{ secrets.PAT }}
+          sparse-checkout: |
+            scripts/build
+          sparse-checkout-cone-mode: false
+          fetch-depth: 0
+        #   path: gha_scripts    # Checkout outside main workspace
+
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.repository.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          path: repo
+          fetch-depth: 0
+
+    #   - name: Setup Git Config
+    #     run: |
+    #       git config --global --add safe.directory ${{ env.CODE_REPO_DIR }}
+          
+    #   - name: Pull Latest Code
+    #     run: |
+    #       ssh-agent bash -c "ssh-add ~/.ssh/id_rsa; git -c core.sshCommand='ssh -o StrictHostKeyChecking=no' pull"
+
+      - name: Build Docker Image
+        env:
+          SERVICE_NAME: ${{ inputs.app_name }}
+          ARTIFACT_REPO_URL: ${{ env.ARTIFACT_REPO_URL }}
+        #   CODE_REPO_DIR: ${{ env.CODE_REPO_DIR }}
+          BUILD_SHA: ${{ inputs.build_sha }}
+        working-directory: ${{ github.workspace }}/repo/
+        run: |
+          # Execute the build script
+          chmod +x ./../scripts/build/build-docker-image.sh
+          ./../scripts/build/build-docker-image.sh
+          
+    #   - name: Run Tests
+    #     run: |
+    #       # Add your test commands here
+    #       echo "Running tests..."
+ 
+  artifact:
+    needs: build
+    runs-on: self-hosted
+    steps:
+      - name: Push docker image to Artifact Registry
+        env:
+            SERVICE_NAME: ${{ inputs.app_name }}
+            ARTIFACT_REPO_URL: ${{ env.ARTIFACT_REPO_URL }}
+        #   CODE_REPO_DIR: ${{ env.CODE_REPO_DIR }}
+            BUILD_SHA: ${{ inputs.build_sha }}
+        working-directory: ${{ github.workspace }}/repo/
+        run: |
+          # Execute the artifact script
+          chmod +x ./../scripts/build/artifact.sh
+          ./../scripts/build/artifact.sh
+        
+#   stop-image-creator:
+#     needs: artifact
+#     runs-on: self-hosted-runner
+#     steps:
+#       - name: Stop Image Creator VM
+#         run: |
+#           gcloud compute instances stop ${{ inputs.image_creator_instance }} \
+#             --project=${{ env.RESOURCES_PROJECT_ID }} \
+#             --zone=${{ env.ZONE }}
+            
+#   create-vm-image:
+#     needs: stop-image-creator
+#     runs-on: self-hosted-runner
+#     steps:
+#       - name: Create new VM Image
+#         run: |
+#           # Add commands to create new VM image
+#           echo "Creating new VM image..."
+#           sleep 30  # Adjust sleep time as needed

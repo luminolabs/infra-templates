@@ -24,6 +24,7 @@ jobs:
           sparse-checkout: |
             scripts/run_python_unittests.sh
           sparse-checkout-cone-mode: false
+          fetch-depth: 0
           path: gha_scripts    # Checkout outside main workspace
 
       - name: Checkout Code Repository
@@ -75,8 +76,8 @@ jobs:
           REQS_CHANGED: ${{ steps.dep-changes.outputs.dependencies_changed }}
         working-directory: ${{ github.workspace }}/repo/
         run: |
-          chmod +x ./../gha_scripts/scripts/run_python_unittests.sh
-          ./../gha_scripts/scripts/run_python_unittests.sh
+          chmod +x ./../gha_scripts/scripts/unittest-python.sh
+          ./../gha_scripts/scripts/unittest-python.sh
 
       - name: Cleanup
         if: always()
