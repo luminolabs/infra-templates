@@ -35,11 +35,14 @@ jobs:
       - name: Get Current Image from MIG
         id: get-current
         run: |
+          echo "Looking for MIG in zone ${{ env.ZONE }}"
           # Get the current template name
           TEMPLATE_NAME=$(gcloud compute instance-groups managed describe ${{ inputs.mig_name }} \
             --project=${{ env.RESOURCES_PROJECT_ID }} \
             --zone=${{ env.ZONE }} \
             --format="get(instanceTemplate)")
+            
+          echo "Found template: $TEMPLATE_NAME"
           
           # Get the image from template
           CURRENT_IMAGE=$(gcloud compute instance-templates describe $TEMPLATE_NAME \
@@ -83,11 +86,19 @@ jobs:
 
       - name: Update MIG
         run: |
-          # Update MIG with new template
-          gcloud compute instance-groups managed rolling-action start-update ${{ inputs.mig_name }} \
-            --project=${{ env.RESOURCES_PROJECT_ID }} \
-            --zone=${{ env.ZONE }} \
-            --version=template=${{ steps.create-template.outputs.template_name }}
+          if [[ "${{ steps.get-current.outputs.is_regional }}" == "true" ]]; then
+            # Update regional MIG
+            gcloud compute instance-groups managed rolling-action start-update ${{ inputs.mig_name }} \
+              --project=${{ env.RESOURCES_PROJECT_ID }} \
+              --region=${{ env.REGION }} \
+              --version=template=${{ steps.create-template.outputs.template_name }}
+          else
+            # Update zonal MIG
+            gcloud compute instance-groups managed rolling-action start-update ${{ inputs.mig_name }} \
+              --project=${{ env.RESOURCES_PROJECT_ID }} \
+              --zone=${{ env.ZONE }} \
+              --version=template=${{ steps.create-template.outputs.template_name }}
+          fi
 
   cleanup:
     needs: [cleanup-old-image, deploy-new-image]
