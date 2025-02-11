@@ -146,8 +146,7 @@ jobs:
     steps:
       - name: Create and Manage VM Images
         run: |
-          echo "Creating new VM Image from Image Creator VM and renaming old VM image to old"
-          # Wait for instance to be fully stopped
+          # Wait for image creator instance to be fully stopped
           sleep 10
           
           # First create new image with build-sha
@@ -159,17 +158,31 @@ jobs:
             --storage-location=us \
             --force
             
-          # Check if standard named image exists and rename it
+          # Check if standard named image exists and copy it to old
           if gcloud compute images describe ${{ inputs.app_name }}-image \
             --project=${{ env.RESOURCES_PROJECT_ID }} &>/dev/null; then
-            echo "Found existing image, renaming it to old..."
-            gcloud compute images rename ${{ inputs.app_name }}-image \
-              --new-name=${{ inputs.app_name }}-image-old \
-              --project=${{ env.RESOURCES_PROJECT_ID }}
+            echo "Found existing image, copying it to old..."
+            gcloud compute images create ${{ inputs.app_name }}-image-old \
+              --project=${{ env.RESOURCES_PROJECT_ID }} \
+              --source-image=${{ inputs.app_name }}-image \
+              --source-image-project=${{ env.RESOURCES_PROJECT_ID }} \
+              --force
+            
+            # Delete the standard named image after copying
+            gcloud compute images delete ${{ inputs.app_name }}-image \
+              --project=${{ env.RESOURCES_PROJECT_ID }} \
+              --quiet
           fi
           
-          # Rename new image to standard name
-          echo "Renaming new image to standard name..."
-          gcloud compute images rename ${{ inputs.app_name }}-image \
-            --new-name=${{ inputs.app_name }}-image \
-            --project=${{ env.RESOURCES_PROJECT_ID }}
+          # Create standard named image from build-sha image
+          echo "Creating standard named image from build-sha image..."
+          gcloud compute images create ${{ inputs.app_name }}-image \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --source-image=${{ inputs.app_name }}-image-${{ inputs.build_sha }} \
+            --source-image-project=${{ env.RESOURCES_PROJECT_ID }} \
+            --force
+            
+          # Delete the build-sha image as we no longer need it
+          gcloud compute images delete ${{ inputs.app_name }}-image-${{ inputs.build_sha }} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --quiet
