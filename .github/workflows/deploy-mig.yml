@@ -37,6 +37,15 @@ jobs:
     outputs:
       old_image: ${{ steps.get-current.outputs.image }}
     steps:
+      - name: Setup GCloud Auth
+        run: |
+          # Write the service account key to a file
+          echo '${{ secrets.MIG_SA_KEY }}' > sa-key.json
+          # Authenticate with the service account
+          gcloud auth activate-service-account scheduler-zen@eng-ai-dev.iam.gserviceaccount.com \
+            --key-file=sa-key.json
+          rm sa-key.json  # Clean up the key file
+
       - name: Get Current Image from MIG
         id: get-current
         run: |
@@ -61,6 +70,15 @@ jobs:
     needs: cleanup-old-image
     runs-on: self-hosted
     steps:
+      - name: Setup GCloud Auth
+        run: |
+          # Write the service account key to a file
+          echo '${{ secrets.MIG_SA_KEY }}' > sa-key.json
+          # Authenticate with the service account
+          gcloud auth activate-service-account scheduler-zen@eng-ai-dev.iam.gserviceaccount.com \
+            --key-file=sa-key.json
+          rm sa-key.json  # Clean up the key file
+
       - name: Get Latest Image
         id: get-latest
         run: |
@@ -102,6 +120,15 @@ jobs:
     runs-on: self-hosted
     if: success()
     steps:
+      - name: Setup GCloud Auth
+        run: |
+          # Write the service account key to a file
+          echo '${{ secrets.MIG_SA_KEY }}' > sa-key.json
+          # Authenticate with the service account
+          gcloud auth activate-service-account scheduler-zen@eng-ai-dev.iam.gserviceaccount.com \
+            --key-file=sa-key.json
+          rm sa-key.json  # Clean up the key file
+
       - name: Delete Old Image
         run: |
           if [[ -n "${{ needs.cleanup-old-image.outputs.old_image }}" ]]; then
