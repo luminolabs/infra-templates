@@ -124,7 +124,15 @@ jobs:
           sleep 15
           
           # Create the image
-          gcloud compute images create ${{ inputs.app_name }}-image-${{ inputs.build_sha }} \
+          # gcloud compute images create ${{ inputs.app_name }}-image-${{ inputs.build_sha }} \
+          #   --project=${{ env.RESOURCES_PROJECT_ID }} \
+          #   --source-disk=${{ inputs.image_creator_instance }} \
+          #   --source-disk-zone=${{ env.ZONE }} \
+          #   --storage-location=us \
+          #   --force \
+          #   --family=${{ inputs.app_name }}-images
+
+          gcloud compute images create ${{ inputs.app_name }}-image \
             --project=${{ env.RESOURCES_PROJECT_ID }} \
             --source-disk=${{ inputs.image_creator_instance }} \
             --source-disk-zone=${{ env.ZONE }} \

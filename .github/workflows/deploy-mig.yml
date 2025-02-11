@@ -37,14 +37,19 @@ jobs:
     outputs:
       old_image: ${{ steps.get-current.outputs.image }}
     steps:
-      - name: Setup GCloud Auth
+      - name: Setup MIG Project Auth
         run: |
-          # Write the service account key to a file
-          echo '${{ secrets.MIG_SA_KEY }}' > sa-key.json
-          # Authenticate with the service account
+          # Store current config
+          gcloud config configurations create temp-config || true
+          gcloud config set account scheduler-zen-dev@neat-airport-407301.iam.gserviceaccount.com
+          
+          # Write the MIG service account key to a file
+          echo '${{ secrets.MIG_SA_KEY }}' > mig-sa-key.json
+          
+          # Get current MIG template using MIG service account
           gcloud auth activate-service-account scheduler-zen@eng-ai-dev.iam.gserviceaccount.com \
-            --key-file=sa-key.json
-          rm sa-key.json  # Clean up the key file
+            --key-file=mig-sa-key.json
+          rm mig-sa-key.json
 
       - name: Get Current Image from MIG
         id: get-current
@@ -65,23 +70,18 @@ jobs:
           
           echo "current_image=$CURRENT_IMAGE" >> $GITHUB_OUTPUT
           echo "Current image: $CURRENT_IMAGE"
+          
+          # Switch back to resources project service account
+          gcloud config set account scheduler-zen-dev@neat-airport-407301.iam.gserviceaccount.com
 
   deploy-new-image:
     needs: cleanup-old-image
     runs-on: self-hosted
     steps:
-      - name: Setup GCloud Auth
-        run: |
-          # Write the service account key to a file
-          echo '${{ secrets.MIG_SA_KEY }}' > sa-key.json
-          # Authenticate with the service account
-          gcloud auth activate-service-account scheduler-zen@eng-ai-dev.iam.gserviceaccount.com \
-            --key-file=sa-key.json
-          rm sa-key.json  # Clean up the key file
-
       - name: Get Latest Image
         id: get-latest
         run: |
+          # Use resources project service account (default)
           # Get the latest image for the app from resources project
           LATEST_IMAGE=$(gcloud compute images list \
             --project=${{ env.RESOURCES_PROJECT_ID }} \
@@ -92,6 +92,15 @@ jobs:
           
           echo "latest_image=$LATEST_IMAGE" >> $GITHUB_OUTPUT
           echo "Latest image: $LATEST_IMAGE"
+
+      - name: Switch to MIG Project Auth
+        run: |
+          # Write the MIG service account key to a file
+          echo '${{ secrets.MIG_SA_KEY }}' > mig-sa-key.json
+          # Authenticate with the MIG service account
+          gcloud auth activate-service-account scheduler-zen@eng-ai-dev.iam.gserviceaccount.com \
+            --key-file=mig-sa-key.json
+          rm mig-sa-key.json
 
       - name: Create New Instance Template
         id: create-template
@@ -114,23 +123,19 @@ jobs:
             --project=${{ env.MIG_PROJECT_ID }} \
             --zone=${{ env.ZONE }} \
             --version=template=${{ steps.create-template.outputs.template_name }}
+          
+      - name: Switch Back to Resources Project Auth
+        run: |
+          gcloud config set account scheduler-zen-dev@neat-airport-407301.iam.gserviceaccount.com
 
   cleanup:
     needs: [cleanup-old-image, deploy-new-image]
     runs-on: self-hosted
     if: success()
     steps:
-      - name: Setup GCloud Auth
-        run: |
-          # Write the service account key to a file
-          echo '${{ secrets.MIG_SA_KEY }}' > sa-key.json
-          # Authenticate with the service account
-          gcloud auth activate-service-account scheduler-zen@eng-ai-dev.iam.gserviceaccount.com \
-            --key-file=sa-key.json
-          rm sa-key.json  # Clean up the key file
-
       - name: Delete Old Image
         run: |
+          # Using resources project service account (default)
           if [[ -n "${{ needs.cleanup-old-image.outputs.old_image }}" ]]; then
             echo "Deleting old image: ${{ needs.cleanup-old-image.outputs.old_image }}"
             gcloud compute images delete ${{ needs.cleanup-old-image.outputs.old_image }} \
