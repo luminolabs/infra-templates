@@ -114,28 +114,62 @@ jobs:
             --project=${{ env.RESOURCES_PROJECT_ID }} \
             --zone=${{ env.ZONE }}
             
+  # create-vm-image:
+  #   needs: stop-image-creator
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Create VM Image from Image Creator VM
+  #       run: |
+  #         # Wait for instance to be fully stopped
+  #         sleep 15
+          
+  #         # Create the image
+  #         # gcloud compute images create ${{ inputs.app_name }}-image-${{ inputs.build_sha }} \
+  #         #   --project=${{ env.RESOURCES_PROJECT_ID }} \
+  #         #   --source-disk=${{ inputs.image_creator_instance }} \
+  #         #   --source-disk-zone=${{ env.ZONE }} \
+  #         #   --storage-location=us \
+  #         #   --force \
+  #         #   --family=${{ inputs.app_name }}-images
+
+  #         gcloud compute images create ${{ inputs.app_name }}-image \
+  #           --project=${{ env.RESOURCES_PROJECT_ID }} \
+  #           --source-disk=${{ inputs.image_creator_instance }} \
+  #           --source-disk-zone=${{ env.ZONE }} \
+  #           --storage-location=us \
+  #           --force \
+  #           --family=${{ inputs.app_name }}-images
+
   create-vm-image:
     needs: stop-image-creator
     runs-on: self-hosted
     steps:
-      - name: Create VM Image from Image Creator VM
+      - name: Create and Manage VM Images
         run: |
+          echo "Creating new VM Image from Image Creator VM and renaming old VM image to old"
           # Wait for instance to be fully stopped
-          sleep 15
+          sleep 10
           
-          # Create the image
-          # gcloud compute images create ${{ inputs.app_name }}-image-${{ inputs.build_sha }} \
-          #   --project=${{ env.RESOURCES_PROJECT_ID }} \
-          #   --source-disk=${{ inputs.image_creator_instance }} \
-          #   --source-disk-zone=${{ env.ZONE }} \
-          #   --storage-location=us \
-          #   --force \
-          #   --family=${{ inputs.app_name }}-images
-
-          gcloud compute images create ${{ inputs.app_name }}-image \
+          # First create new image with build-sha
+          echo "Creating new image with build-sha..."
+          gcloud compute images create ${{ inputs.app_name }}-image-${{ inputs.build_sha }} \
             --project=${{ env.RESOURCES_PROJECT_ID }} \
             --source-disk=${{ inputs.image_creator_instance }} \
             --source-disk-zone=${{ env.ZONE }} \
             --storage-location=us \
-            --force \
-            --family=${{ inputs.app_name }}-images
+            --force
+            
+          # Check if standard named image exists and rename it
+          if gcloud compute images describe ${{ inputs.app_name }}-image \
+            --project=${{ env.RESOURCES_PROJECT_ID }} &>/dev/null; then
+            echo "Found existing image, renaming it to old..."
+            gcloud compute images rename ${{ inputs.app_name }}-image \
+              --new-name=${{ inputs.app_name }}-image-old \
+              --project=${{ env.RESOURCES_PROJECT_ID }}
+          fi
+          
+          # Rename new image to standard name
+          echo "Renaming new image to standard name..."
+          gcloud compute images rename ${{ inputs.app_name }}-image \
+            --new-name=${{ inputs.app_name }}-image \
+            --project=${{ env.RESOURCES_PROJECT_ID }}
