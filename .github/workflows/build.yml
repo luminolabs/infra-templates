@@ -1,0 +1,188 @@
+name: Build
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        required: true
+        type: string
+      build_sha:
+        required: true
+        type: string        
+      image_creator_instance:
+        required: true
+        type: string
+      resources_project_id:
+        required: false
+        type: string
+        default: neat-airport-407301
+      region:
+        required: false
+        type: string
+        default: us-central1
+      zone:
+        required: false
+        type: string
+        default: us-central1-a
+    secrets:
+      PAT:
+        required: true
+
+env:
+  RESOURCES_PROJECT_ID: ${{ inputs.resources_project_id }}
+  REGION: ${{ inputs.region }}
+  ZONE: ${{ inputs.zone }}
+  ARTIFACT_REPO_URL: ${{ inputs.region }}-docker.pkg.dev/${{ inputs.resources_project_id }}/lum-docker-images
+
+jobs:
+  start-image-creator:
+    runs-on: self-hosted
+    steps:
+      - name: Start Image Creator VM
+        run: |
+          gcloud compute instances start ${{ inputs.image_creator_instance }} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --zone=${{ env.ZONE }}
+          
+  build:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout build scripts
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: test-org-runner/infra-templates
+          ref: refs/heads/srujan/ci_cd
+          token: ${{ secrets.PAT }}
+          sparse-checkout: |
+            scripts/build
+          sparse-checkout-cone-mode: false
+          fetch-depth: 0
+
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.repository.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          path: repo
+          fetch-depth: 0
+
+      - name: Build Docker Image
+        env:
+          SERVICE_NAME: ${{ inputs.app_name }}
+          ARTIFACT_REPO_URL: ${{ env.ARTIFACT_REPO_URL }}
+          BUILD_SHA: ${{ inputs.build_sha }}
+        working-directory: ${{ github.workspace }}/repo/
+        run: |
+          echo "Executing build script"
+          chmod +x ./../scripts/build/build-docker-image.sh
+          ./../scripts/build/build-docker-image.sh
+ 
+  artifact:
+    needs: build
+    runs-on: self-hosted
+    steps:
+      - name: Push docker image to Artifact Registry
+        env:
+            SERVICE_NAME: ${{ inputs.app_name }}
+            ARTIFACT_REPO_URL: ${{ env.ARTIFACT_REPO_URL }}
+            BUILD_SHA: ${{ inputs.build_sha }}
+        working-directory: ${{ github.workspace }}/repo/
+        run: |
+          echo "Executing artifact script"
+          chmod +x ./../scripts/build/artifact.sh
+          ./../scripts/build/artifact.sh
+
+  pull-artifact:
+    needs: [start-image-creator, artifact]
+    runs-on: self-hosted
+    steps:
+      - name: Clean and Pull Latest Docker Image on Image Creator VM
+        run: |
+          # Clean up and pull latest image for next build
+          gcloud compute ssh ${{ inputs.image_creator_instance }} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --zone=${{ env.ZONE }} \
+            --command="sudo docker system prune -f && \
+                      sudo docker pull ${{ env.ARTIFACT_REPO_URL }}/${{ inputs.app_name }}:latest || true"
+        
+  stop-image-creator:
+    needs: [start-image-creator, pull-artifact]
+    runs-on: self-hosted
+    steps:
+      - name: Stop Image Creator VM
+        run: |
+          gcloud compute instances stop ${{ inputs.image_creator_instance }} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --zone=${{ env.ZONE }}
+            
+  # create-vm-image:
+  #   needs: stop-image-creator
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Create VM Image from Image Creator VM
+  #       run: |
+  #         # Wait for instance to be fully stopped
+  #         sleep 15
+          
+  #         # Create the image
+  #         # gcloud compute images create ${{ inputs.app_name }}-image-${{ inputs.build_sha }} \
+  #         #   --project=${{ env.RESOURCES_PROJECT_ID }} \
+  #         #   --source-disk=${{ inputs.image_creator_instance }} \
+  #         #   --source-disk-zone=${{ env.ZONE }} \
+  #         #   --storage-location=us \
+  #         #   --force \
+  #         #   --family=${{ inputs.app_name }}-images
+
+  #         gcloud compute images create ${{ inputs.app_name }}-image \
+  #           --project=${{ env.RESOURCES_PROJECT_ID }} \
+  #           --source-disk=${{ inputs.image_creator_instance }} \
+  #           --source-disk-zone=${{ env.ZONE }} \
+  #           --storage-location=us \
+  #           --force \
+  #           --family=${{ inputs.app_name }}-images
+
+  create-vm-image:
+    needs: stop-image-creator
+    runs-on: self-hosted
+    steps:
+      - name: Create and Manage VM Images
+        run: |
+          # Wait for image creator instance to be fully stopped
+          sleep 10
+          
+          # First create new image with build-sha
+          echo "Creating new image with build-sha..."
+          gcloud compute images create ${{ inputs.app_name }}-image-${{ inputs.build_sha }} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --source-disk=${{ inputs.image_creator_instance }} \
+            --source-disk-zone=${{ env.ZONE }} \
+            --storage-location=us \
+            --force
+            
+          # Check if standard named image exists and copy it to old
+          if gcloud compute images describe ${{ inputs.app_name }}-image \
+            --project=${{ env.RESOURCES_PROJECT_ID }} &>/dev/null; then
+            echo "Found existing image, copying it to old..."
+            gcloud compute images create ${{ inputs.app_name }}-image-old \
+              --project=${{ env.RESOURCES_PROJECT_ID }} \
+              --source-image=${{ inputs.app_name }}-image \
+              --source-image-project=${{ env.RESOURCES_PROJECT_ID }} \
+              --force
+            
+            # Delete the standard named image after copying
+            gcloud compute images delete ${{ inputs.app_name }}-image \
+              --project=${{ env.RESOURCES_PROJECT_ID }} \
+              --quiet
+          fi
+          
+          # Create standard named image from build-sha image
+          echo "Creating standard named image from build-sha image..."
+          gcloud compute images create ${{ inputs.app_name }}-image \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --source-image=${{ inputs.app_name }}-image-${{ inputs.build_sha }} \
+            --source-image-project=${{ env.RESOURCES_PROJECT_ID }} \
+            --force
+            
+          # Delete the build-sha image as we no longer need it
+          gcloud compute images delete ${{ inputs.app_name }}-image-${{ inputs.build_sha }} \
+            --project=${{ env.RESOURCES_PROJECT_ID }} \
+            --quiet

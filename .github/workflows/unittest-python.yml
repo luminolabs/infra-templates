@@ -1,0 +1,86 @@
+name: Unit Tests:Python
+
+on:
+  workflow_call:
+    inputs:
+      python_version:
+        type: string
+        default: "3.11.10"
+    secrets:
+      PAT:
+        required: true
+
+jobs:
+  run:
+    name: Run tests
+    runs-on: self-hosted
+    steps:
+      - name: Checkout unit tests script
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: test-org-runner/infra-templates
+          ref: refs/heads/srujan/ci_cd
+          token: ${{ secrets.PAT }}
+          sparse-checkout: |
+            scripts/unittest-python.sh
+          sparse-checkout-cone-mode: false
+          fetch-depth: 0
+          path: gha_scripts    # Checkout outside main workspace
+
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.repository.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          path: repo
+          fetch-depth: 0
+
+      # Check if requirements.txt/requirements-text.txt changed in PR
+      - name: Check dependency changes
+        id: dep-changes
+        working-directory: repo
+        run: |
+          git fetch origin main
+          REQS_CHANGED=$(git diff origin/main...HEAD -- requirements.txt requirements-test.txt)
+          if [ -n "$REQS_CHANGED" ]; then
+            echo "dependencies_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "dependencies_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Cache base/common virtualenv
+      - name: Cache base virtualenv
+        uses: actions/cache@v4
+        id: base-venv-cache
+        if: steps.dep-changes.outputs.dependencies_changed == 'false'
+        with:
+          path: ~/.pyenv/versions/venv-${{ github.event.repository.name }}-base-${{ inputs.python_version }}
+          key: pyenv-${{ github.event.repository.name }}-base-v${{ inputs.python_version }}-${{ hashFiles('repo/requirements.txt', 'repo/requirements-test.txt') }}
+
+      # Cache PR virtualenv only if requirements.txt/requirements-text.txt changed
+      - name: Cache PR virtualenv
+        uses: actions/cache@v4
+        if: steps.dep-changes.outputs.dependencies_changed == 'true'
+        id: pr-venv-cache
+        with:
+          path: ~/.pyenv/versions/venv-${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}-${{ inputs.python_version }}
+          key: pyenv-${{ github.event.repository.name }}-pr${{ github.event.pull_request.number }}-v${{ inputs.python_version }}-${{ hashFiles('repo/requirements.txt', 'repo/requirements-test.txt') }}
+
+      - name: Run Test Script
+        env:
+          PYTHON_VERSION: ${{ inputs.python_version }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_VENV_CACHE_HIT: ${{ steps.base-venv-cache.outputs.cache-hit }}
+          PR_VENV_CACHE_HIT: ${{ steps.pr-venv-cache.outputs.cache-hit }}
+          REQS_CHANGED: ${{ steps.dep-changes.outputs.dependencies_changed }}
+        working-directory: ${{ github.workspace }}/repo/
+        run: |
+          chmod +x ./../gha_scripts/scripts/unittest-python.sh
+          ./../gha_scripts/scripts/unittest-python.sh
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -rf gha_scripts
+          rm -rf repo
